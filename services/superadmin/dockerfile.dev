@@ -1,0 +1,22 @@
+# ---- Base Image ----
+FROM node:18
+
+# ---- Set working directory inside container ----
+WORKDIR /usr/src/app
+
+# ---- Copy package files and install all dependencies (including dev) ----
+COPY package*.json ./
+RUN npm install
+
+# ---- Copy all source code ----
+COPY . .
+
+# ---- Environment ----
+ENV NODE_ENV=development
+ENV PORT=4006
+
+# ---- Expose service port ----
+EXPOSE 4006
+
+# ---- Start the app with Nodemon for live reload ----
+CMD ["npm", "run", "dev"]

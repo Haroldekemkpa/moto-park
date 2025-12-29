@@ -1,0 +1,134 @@
+# ~/moto-park/docker-compose.yaml
+# version: '3.8'
+
+services:
+  auth:
+    build:
+      context: ./services/auth
+      dockerfile: Dockerfile
+    command: ["sh", "-c", "until nc -z auth-db 5432; do echo waiting for auth-db; sleep 2; done; npm run dev"]
+    ports:
+      - "3001:3001"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - DB_HOST=auth-db
+      - DB_USER=postgres
+      - DB_PASSWORD=haroldekemkpa
+      - DB_NAME=auth_db
+      - DB_PORT=5432
+    volumes:
+      - ./services/auth:/app
+      - /app/node_modules
+    depends_on:
+      - auth-db
+    tty: true
+    stdin_open: true
+
+  auth-db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: haroldekemkpa
+      POSTGRES_DB: auth_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - auth-data:/var/lib/postgresql/data
+      - ./databases/auth/init/auth.sql:/docker-entrypoint-initdb.d/01-auth.sql
+  superadmin:
+    build:
+      context: ./services/superadmin
+      dockerfile: dockerfile.dev
+    command: ["sh", "-c", "until nc -z superadmin-db 5432; do echo waiting for superadmin-db; sleep 2; done; npm run dev"]
+    ports:
+      - "4006:4006"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=development
+      - PORT=4006
+      - DB_HOST=superadmin-db
+      - DB_USER=postgres
+      - DB_PASSWORD=haroldekemkpa
+      - DB_NAME=superadmin_db
+      - DB_PORT=5432
+      - REDIS_URL=redis://redis:6379
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+    volumes:
+      - ./services/superadmin:/usr/src/app
+      - /usr/src/app/node_modules
+    depends_on:
+      - superadmin-db
+      - redis
+      - rabbitmq
+    tty: true
+    stdin_open: true
+
+  superadmin-db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: haroldekemkpa
+      POSTGRES_DB: superadmin_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - superadmin-data:/var/lib/postgresql/data
+      - ./databases/superadmin/init/superadmin.sql:/docker-entrypoint-initdb.d/01-superadmin.sql
+      
+
+  # booking:
+  #   build:
+  #     context: .
+  #     dockerfile: services/booking/Dockerfile
+  #   ports:
+  #     - "3005:3000"
+  #   environment:
+  #     - NODE_ENV=development
+  #     - DB_HOST=booking-db
+  #     - DB_NAME=booking_db
+  #     - DB_USER=postgres
+  #     - DB_PASSWORD=haroldekemkpa
+  #     - DB_PORT=5432
+  #     - REDIS_URL=redis://redis:6379
+  #   depends_on:
+  #     - booking-db
+  #     - redis
+  #   volumes:
+  #     - ./services/booking:/app
+  #     - /app/node_modules
+
+  # booking-db:
+  #   image: postgres:16
+  #   environment:
+  #     POSTGRES_USER: postgres
+  #     POSTGRES_PASSWORD: haroldekemkpa
+  #     POSTGRES_DB: booking_db
+  #   volumes:
+  #     - booking-data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    hostname: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+
+# ONE AND ONLY volumes section (at the very end)
+volumes:
+  auth-data:
+  booking-data:
+  redis-data:
+  rabbitmq-data:
